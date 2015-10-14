@@ -1,0 +1,66 @@
+buildscript {
+    repositories {
+        maven {
+            url "http://dl.bintray.com/jmoore/java-lib"
+        }
+    }
+    dependencies {
+        classpath 'com.mooregreatsoftware:gradle-defaults:1.0.3'
+    }
+}
+
+plugins {
+    id 'com.jfrog.bintray' version '1.2'
+}
+
+group = 'com.twcable.gradle'
+description = 'Gradle plugin for working with Felix SCR annotations'
+
+apply plugin: 'groovy'
+
+apply plugin: 'java-gradle-plugin'
+
+def scr_version = '1.13.0'
+
+dependencies {
+    compile "org.apache.felix:org.apache.felix.scr.generator:${scr_version}"
+    compile "org.apache.felix:org.apache.felix.scr.ant:${scr_version}"
+    compile "biz.aQute.bnd:biz.aQute.bndlib:3.0.0"
+
+    testCompile "org.spockframework:spock-core:1.0-groovy-2.4", {
+        exclude group: 'org.codehaus.groovy', module: 'groovy-all'
+        exclude group: 'org.hamcrest', module: 'hamcrest-core'
+    }
+}
+
+bintray {
+    pkg {
+        licenses = ['Apache-2.0']
+        attributes = ['plat': ['gradle', 'groovy', 'java', 'jvm', 'osgi']]
+
+        //noinspection GroovyAssignabilityCheck
+        version {
+            attributes = ['gradle-plugin': ["com.twcable.gradle-plugin:${project.group}:${project.name}"]]
+        }
+    }
+}
+
+apply plugin: 'com.mooregreatsoftware.defaults'
+
+defaults {
+    compatibilityVersion = '1.7'
+
+    id = 'twcable'
+
+    orgName = 'Time Warner Cable'
+    orgUrl = 'http://www.timewarnercable.com'
+
+    bintrayRepo = 'aem'
+    bintrayLabels = ['gradle', 'groovy', 'scr', 'osgi']
+
+    developers = [
+        [id: 'jmoore', name: 'Jim Moore', email: 'moore.jim@gmail.com'],
+    ]
+
+    copyrightYears = '2014-2015'
+}
