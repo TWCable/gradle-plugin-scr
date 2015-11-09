@@ -47,6 +47,8 @@ bintray {
 
 apply plugin: 'com.mooregreatsoftware.defaults'
 
+//release.defaultVersionStrategy = org.ajoberstar.gradle.git.release.opinion.Strategies.SNAPSHOT
+
 defaults {
     compatibilityVersion = '1.7'
 

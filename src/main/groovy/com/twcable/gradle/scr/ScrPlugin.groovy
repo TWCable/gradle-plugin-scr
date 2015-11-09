@@ -33,7 +33,7 @@ import org.gradle.api.tasks.bundling.Jar
 @SuppressWarnings("GrMethodMayBeStatic")
 class ScrPlugin implements Plugin<Project> {
     @SuppressWarnings("GroovyUnusedDeclaration")
-    final static String SCR_ANT_VERSION = '1.3.0'
+    final static String SCR_ANT_VERSION = '1.14.0'
 
     @SuppressWarnings("GroovyUnusedDeclaration")
     final static String BND_LIB_VERSION = '1.50.0'
