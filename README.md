@@ -4,7 +4,7 @@ This makes it easier to work for with
 [the Felix SCR annotations](https://felix.apache.org/documentation/subprojects/apache-felix-maven-scr-plugin/scr-annotations.html)
 for Gradle and Apache Felix (including Adobe CQ/AEM).
 
-[ ![Download](https://api.bintray.com/packages/twcable/aem/gradle-plugin-scr/images/download.svg) ](https://bintray.com/twcable/aem/gradle-plugin-scr/_latestVersion)
+[ ![Download](https://api.bintray.com/packages/twcable/aem/gradle-plugin-scr/images/download.svg) ](https://bintray.com/twcable/aem/gradle-plugin-scr/_latestVersion) [![Build Status](https://travis-ci.org/TWCable/gradle-plugin-scr.svg?branch=master)](https://travis-ci.org/TWCable/gradle-plugin-scr)
 
 # Usage #
 
