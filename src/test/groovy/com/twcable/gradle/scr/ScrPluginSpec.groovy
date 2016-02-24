@@ -15,119 +15,64 @@
  */
 package com.twcable.gradle.scr
 
-import org.gradle.api.DefaultTask
-import org.gradle.api.InvalidUserDataException
-import org.gradle.api.Project
-import org.gradle.api.internal.artifacts.dependencies.DefaultExternalModuleDependency
-import org.gradle.api.tasks.TaskExecutionException
-import org.gradle.testfixtures.ProjectBuilder
-
-import spock.lang.Specification
+import nebula.test.PluginProjectSpec
+import org.gradle.api.internal.project.DefaultProject
+import org.gradle.api.logging.LogLevel
 import spock.lang.Subject
 
 @Subject(ScrPlugin)
-class ScrPluginSpec extends Specification {
-    Project project
+@SuppressWarnings("GroovyPointlessBoolean")
+class ScrPluginSpec extends PluginProjectSpec {
 
-
-    def setupProjectOne() {
-        setupProject('/scr/proj')
+    def setup() {
+        project.logging.level = LogLevel.DEBUG
     }
 
 
-    def setupProjectTwo() {
-        setupProject('/scr/proj2')
+    def "dependsOn"() {
+        project.apply plugin: pluginName
+
+        project.apply plugin: 'java'
+        def jarTask = project.tasks.getByName('jar')
+
+
+        def jarDependencies = jarTask.taskDependencies.getDependencies(jarTask)
+
+        expect:
+        jarDependencies.contains(project.tasks.getByName('processScrAnnotations'))
     }
 
 
-    def setupProject(final path) {
-        // project contains @Reference SCR annotation to a file that is not an interface
-        project = ProjectBuilder.builder().withProjectDir(file(path)).build()
-        project.repositories.flatDir(dirs: file('/scr/lib'))
+    def "sets input and output"() {
+        project.apply plugin: pluginName
+        project.apply plugin: 'java'
 
-        project.apply plugin: 'groovy'
-        project.apply plugin: ScrPlugin
+        ((DefaultProject)project).evaluate()
 
-        final dependencies = project.configurations.getByName('compile').dependencies
-        dependencies.add(new DefaultExternalModuleDependency('org.apache.felix', 'org.apache.felix.scr.annotations', '1.9.8'))
-        dependencies.add(new DefaultExternalModuleDependency('javax.servlet', 'servlet-api', '2.5'))
-        dependencies.add(project.dependencies.localGroovy())
+        def task = project.tasks.getByName('processScrAnnotations')
 
-        (project.tasks.getByName('clean') as DefaultTask).execute()
-        (project.tasks.getByName('compileGroovy') as DefaultTask).execute()
-        (project.tasks.getByName('processScrAnnotations') as DefaultTask).execute()
+        expect:
+        task.inputs.hasInputs == true
+        task.outputs.hasOutput == true
     }
 
 
-    def "check serviceComponents components"() {
-        setup:
-        setupProjectOne()
+    def "does not set input and output when there are no source sets"() {
+        project.apply plugin: pluginName
 
-        when:
-        final simpleServiceFile = file('/scr/proj/build/classes/main/OSGI-INF/testpkg.SimpleService.xml')
-        final simpleService = new XmlSlurper().parse(simpleServiceFile).declareNamespace(scr: 'http://www.osgi.org/xmlns/scr/v1.0.0')
+        ((DefaultProject)project).evaluate()
 
-        then:
-        simpleService.@name == 'testpkg.SimpleService'
-        simpleService.@immediate == true
-        simpleService.service.provide.collect {
-            it.@interface
-        } as Set == ['java.lang.Runnable', 'groovy.lang.GroovyObject'] as Set
-        simpleService.property.collect { it.@name } as Set ==
-            ['testProp', 'testProp2', 'process.label', 'service.pid', 'prop.on.constant'] as Set
+        def task = project.tasks.getByName('processScrAnnotations')
 
-        when:
-        final simpleServletFile = file('/scr/proj/build/classes/main/OSGI-INF/testpkg.SimpleServlet.xml')
-        final simpleServlet = new XmlSlurper().parse(simpleServletFile).declareNamespace(scr: 'http://www.osgi.org/xmlns/scr/v1.0.0')
-
-        then:
-        simpleServlet.@name == 'testpkg.SimpleServlet'
-        simpleServlet.service.provide.collect { it.@interface } as Set == ['javax.servlet.Servlet'] as Set
-        simpleServlet.property.collect { it.@name } as Set ==
-            ['sling.servlet.paths', 'sling.servlet.methods', 'service.description', 'service.pid'] as Set
+        expect:
+        task.inputs.hasInputs == false
+        task.outputs.hasOutput == false
     }
 
 
-    def "check metatype components"() {
-        when:
-        setupProjectOne()
-        final metadataFile = file('/scr/proj/build/classes/main/OSGI-INF/metatype/testpkg.SimpleService.xml')
-        final metadata = new XmlSlurper().parse(metadataFile).declareNamespace(mt: 'http://www.osgi.org/xmlns/metatype/v1.0.0')
-
-        then:
-        metadata.OCD.@id == 'testpkg.SimpleService'
-    }
-
-
-    def "Fail test case for reference validation"() {
-        when:
-        setupProjectTwo()
-
-        then:
-        TaskExecutionException exception = thrown()
-        "Execution failed for task ':processScrAnnotations'." == exception.message
-        InvalidUserDataException cause = exception.cause as InvalidUserDataException
-        "\ntestpkg2.SimpleServlet has an @Reference to testpkg2.SimpleService, but it is not an interface." == cause.message
-    }
-
-
-    File file(String filename) {
-        final resource = ScrPluginSpec.getResource(filename)
-        if (resource != null) {
-            return new File(resource.file)
-        }
-        def f = new File('.').canonicalFile
-        def theProjFile = new File(f, "src/test/${filename}").canonicalFile
-        if (theProjFile.exists()) {
-            return theProjFile
-        }
-
-        f = new File('./scr').canonicalFile
-        theProjFile = new File(f, "src/test/${filename}").canonicalFile
-        if (theProjFile.exists()) {
-            return theProjFile
-        }
-        throw new FileNotFoundException(theProjFile.toString())
+    @Override
+    String getPluginName() {
+        return "com.twcable.scr"
     }
 
 }
