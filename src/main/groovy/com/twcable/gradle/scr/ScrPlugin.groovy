@@ -17,16 +17,16 @@ package com.twcable.gradle.scr
 
 import groovy.transform.TypeChecked
 import groovy.transform.TypeCheckingMode
-
 import org.apache.felix.scrplugin.ant.SCRDescriptorTask
 import org.apache.tools.ant.types.Path
-
 import org.gradle.api.InvalidUserDataException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.Task
 import org.gradle.api.plugins.JavaPluginConvention
 import org.gradle.api.plugins.osgi.OsgiManifest
 import org.gradle.api.tasks.SourceSet
+import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.bundling.Jar
 
 @TypeChecked
@@ -53,14 +53,32 @@ class ScrPlugin implements Plugin<Project> {
             group = 'Build'
             description = 'Processes the Felix SCR service annotations'
             dependsOn 'classes'
-            outputs.dir new File(mainSourceSet(project).output.classesDir, 'OSGI-INF')
-            inputs.source mainSourceSet(project).output.classesDir
+            project.afterEvaluate {
+                def dynamicObject = project.convention.extensionsAsDynamicObject
+                if (dynamicObject.hasProperty('sourceSets')) {
+                    def sourceSets = dynamicObject.getProperty('sourceSets') as SourceSetContainer
+                    def mainSourceSet = sourceSets.asMap.get('main')
+                    if (mainSourceSet != null) {
+                        def classesDir = mainSourceSet.output.classesDir
+                        inputs.dir classesDir
+                        outputs.dir new File(classesDir, 'OSGI-INF')
+                    }
+                    else {
+                        project.logger.warn "${this.class.name} was applied to project ${project.name} but it does not have a \"main\" source set"
+                    }
+                }
+                else {
+                    project.logger.warn "${this.class.name} was applied to project ${project.name} but it does not have any source sets"
+                }
+            }
 
             doLast {
                 configureAction(project)
             }
         }
-        project.tasks.getByName('jar').dependsOn processScrAnnotations
+        project.tasks.withType(Jar) { Task task ->
+            task.dependsOn processScrAnnotations
+        }
     }
 
 
