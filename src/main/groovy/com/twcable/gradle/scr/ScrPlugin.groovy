@@ -15,29 +15,23 @@
  */
 package com.twcable.gradle.scr
 
-import groovy.transform.TypeChecked
-import groovy.transform.TypeCheckingMode
+import groovy.transform.CompileStatic
+import groovy.util.slurpersupport.Attributes
+import groovy.util.slurpersupport.GPathResult
+import groovy.util.slurpersupport.NodeChild
 import org.apache.felix.scrplugin.ant.SCRDescriptorTask
 import org.apache.tools.ant.types.Path
 import org.gradle.api.InvalidUserDataException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.api.plugins.JavaPluginConvention
 import org.gradle.api.plugins.osgi.OsgiManifest
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.bundling.Jar
 
-@TypeChecked
-@SuppressWarnings("GrMethodMayBeStatic")
+@CompileStatic
 class ScrPlugin implements Plugin<Project> {
-    @SuppressWarnings("GroovyUnusedDeclaration")
-    final static String SCR_ANT_VERSION = '1.14.0'
-
-    @SuppressWarnings("GroovyUnusedDeclaration")
-    final static String BND_LIB_VERSION = '1.50.0'
-
 
     @Override
     void apply(Project project) {
@@ -47,33 +41,23 @@ class ScrPlugin implements Plugin<Project> {
     }
 
 
-    protected void addScrTask(Project project) {
+    static void addScrTask(Project project) {
         final processScrAnnotations = project.tasks.create('processScrAnnotations')
         processScrAnnotations.with {
             group = 'Build'
             description = 'Processes the Felix SCR service annotations'
             dependsOn 'classes'
             project.afterEvaluate {
-                def dynamicObject = project.convention.extensionsAsDynamicObject
-                if (dynamicObject.hasProperty('sourceSets')) {
-                    def sourceSets = dynamicObject.getProperty('sourceSets') as SourceSetContainer
-                    def mainSourceSet = sourceSets.asMap.get('main')
-                    if (mainSourceSet != null) {
-                        def classesDir = mainSourceSet.output.classesDir
-                        inputs.dir classesDir
-                        outputs.dir new File(classesDir, 'OSGI-INF')
-                    }
-                    else {
-                        project.logger.warn "${this.class.name} was applied to project ${project.name} but it does not have a \"main\" source set"
-                    }
-                }
-                else {
-                    project.logger.warn "${this.class.name} was applied to project ${project.name} but it does not have any source sets"
+                def mainSourceSet = mainSourceSet(project)
+                if (mainSourceSet != null) {
+                    def classesDir = mainSourceSet.output.classesDir
+                    inputs.dir classesDir
+                    outputs.dir new File(classesDir, 'OSGI-INF')
                 }
             }
 
             doLast {
-                configureAction(project)
+                processScr(project)
             }
         }
         project.tasks.withType(Jar) { Task task ->
@@ -82,8 +66,8 @@ class ScrPlugin implements Plugin<Project> {
     }
 
 
-    void configureAction(Project project) {
-        SourceSet mainSourceSet = mainSourceSet(project)
+    static void processScr(Project project) {
+        final mainSourceSet = mainSourceSet(project)
         final antProject = project.ant.project
         final classesDir = mainSourceSet.output.classesDir
         final runtimeClasspath = mainSourceSet.runtimeClasspath
@@ -100,8 +84,8 @@ class ScrPlugin implements Plugin<Project> {
     }
 
 
-    void addToManifest(Project project, File resourcesDir) throws InvalidUserDataException {
-        final osgiInfDir = new File(resourcesDir, 'OSGI-INF')
+    static void addToManifest(Project project, File classesDir) throws InvalidUserDataException {
+        final osgiInfDir = new File(classesDir, 'OSGI-INF')
 
         def files = osgiInfDir.listFiles({ File dir, String name ->
             name.endsWith(".xml")
@@ -120,16 +104,22 @@ class ScrPlugin implements Plugin<Project> {
         }
     }
 
-
-    @TypeChecked(TypeCheckingMode.SKIP)
-    private void validateReferences(Project project, List<File> files) {
+    /**
+     * Walk through the files and make sure that any @Reference is to an interface instead of a class. If there are
+     * any problems, the error messages are gathered together an an {@link InvalidUserDataException} is thrown.
+     */
+    static void validateReferences(Project project, List<File> files) throws InvalidUserDataException {
         def errorMessage = ""
+
+        final classLoader = loadClassPaths(project)
 
         for (file in files) {
             def component = new XmlSlurper().parse(file)
-            for (references in component.reference) {
-                errorMessage = generateErrorMsg(errorMessage, (String)references.@interface.text(), (String)component.@name.text(),
-                    loadClassPaths(project))
+
+            def compName = attrText(component, "name")
+
+            component.getProperty("reference").each { NodeChild references ->
+                errorMessage = generateErrorMsg(errorMessage, attrText(references, "interface"), compName, classLoader)
             }
         }
 
@@ -139,7 +129,13 @@ class ScrPlugin implements Plugin<Project> {
     }
 
 
-    private String generateErrorMsg(String errorMessage, String interfaceName, String className, ClassLoader classLoader) {
+    static String attrText(GPathResult node, String attrName) {
+        return ((Attributes)node.getProperty("@" + attrName)).text()
+    }
+
+
+    static String generateErrorMsg(String errorMessage, String interfaceName, String className,
+                                   ClassLoader classLoader) {
         try {
             def clas = classLoader.loadClass(interfaceName)
 
@@ -150,21 +146,35 @@ class ScrPlugin implements Plugin<Project> {
         catch (ClassNotFoundException ignored) {
             errorMessage += "\n${className} has an @Reference to ${interfaceName} that could not be found by the class loader."
         }
-        errorMessage
+        return errorMessage
     }
 
     /**
-     * load classPaths into class loader
+     * Create a ClassLoader for the main runtimeClasspath
      */
-    private ClassLoader loadClassPaths(Project project) throws InvalidUserDataException {
+    static ClassLoader loadClassPaths(Project project) throws InvalidUserDataException {
         def classpathURLs = mainSourceSet(project).runtimeClasspath.collect { File f -> f.toURI().toURL() }
         if (!classpathURLs) throw new InvalidUserDataException("Runtime class path empty.")
         return new URLClassLoader(classpathURLs as URL[], Thread.currentThread().contextClassLoader)
     }
 
+    /**
+     * Find the "main" SourceSet. This is added by default by the 'java' plugin and those that extend from it
+     * @return null if it can't be found
+     */
+    static SourceSet mainSourceSet(Project project) {
+        def dynamicObject = project.convention.extensionsAsDynamicObject
+        if (dynamicObject.hasProperty('sourceSets')) {
+            def sourceSets = dynamicObject.getProperty('sourceSets') as SourceSetContainer
+            def main = sourceSets.asMap.get('main') as SourceSet
 
-    public SourceSet mainSourceSet(Project project) {
-        return project.convention.findPlugin(JavaPluginConvention)?.sourceSets?.getByName('main')
+            if (main != null) return main
+
+            project.logger.error "Could not find \"sourceSets.main\" in ${project} when applying ${this.class.name}"
+            return null
+        }
+        project.logger.error "Could not find \"sourceSets\" in ${project} when applying ${this.class.name}"
+        return null
     }
 
 }
