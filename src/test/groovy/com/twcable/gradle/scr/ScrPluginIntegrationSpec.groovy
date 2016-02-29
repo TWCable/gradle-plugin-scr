@@ -81,6 +81,28 @@ class ScrPluginIntegrationSpec extends IntegrationSpec {
     }
 
 
+    def "no components"() {
+        logLevel = LogLevel.INFO
+
+        writeBuildFile()
+
+        writeSimpleClass("com.test", projectDir)
+
+        when:
+        def result = runTasks("processScrAnnotations")
+
+        then:
+        result.success
+
+        // properly logs that no component definitions could be created
+        result.standardOutput.contains("/*.xml was not created")
+
+        cleanup:
+        if (result) println result.standardOutput
+        if (result) println result.standardError
+    }
+
+
     private File writeBuildFile() {
         return buildFile << '''
             apply plugin: 'java'
@@ -249,6 +271,19 @@ class ScrPluginIntegrationSpec extends IntegrationSpec {
                 public void destroy() {
                 }
 
+            }
+        """.stripIndent()
+    }
+
+
+    @CompileStatic
+    File writeSimpleClass(String packageDotted, File baseDir) {
+        def path = 'src/main/java/' + packageDotted.replace('.', '/') + '/SimpleClass.java'
+        def javaFile = createFile(path, baseDir)
+        javaFile << """
+            package ${packageDotted};
+
+            public class SimpleClass {
             }
         """.stripIndent()
     }

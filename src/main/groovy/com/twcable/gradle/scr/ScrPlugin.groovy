@@ -107,7 +107,7 @@ class ScrPlugin implements Plugin<Project> {
             name.endsWith(".xml")
         } as FilenameFilter) as List<File>
 
-        if (!files.isEmpty()) {
+        if (files != null && !files.isEmpty()) {
             def relFiles = files.collect { file -> 'OSGI-INF/' + file.name }
             project.logger.info "Created ${relFiles}"
             final jar = (Jar)project.tasks.getByName('jar')
