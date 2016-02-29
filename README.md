@@ -15,8 +15,12 @@ Applying the plugin implicitly applies the `osgi` plugin
 
 ## Task ##
 
-* `processScrAnnotations` - Processes the x-doclet style and @SCR annotations to create
-  the appropriate OSGi metadata for OSGi Declarative Services.
+`processScrAnnotations` - Processes the @SCR annotations to create the appropriate OSGi metadata for OSGi
+Declarative Services.
+  
+By default it will also verify that every `@Reference` is to an interface and fail the build if it is trying to link
+to a class. This safety check can be disabled if needed by setting the `skipInterfaceReferenceCheck` property to
+`true` on this task.
 
 # Installation #
 
