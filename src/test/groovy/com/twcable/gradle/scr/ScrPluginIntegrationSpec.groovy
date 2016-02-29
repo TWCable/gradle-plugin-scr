@@ -57,6 +57,9 @@ class ScrPluginIntegrationSpec extends IntegrationSpec {
     def "trying to use class instead of interface for @Reference"() {
         logLevel = LogLevel.INFO
 
+        // need to fork to have the "fully fresh" classloader encountered in GH-1
+        fork = true
+
         writeBuildFile()
 
         writeSimpleService("testpkg2", projectDir)
@@ -89,7 +92,7 @@ class ScrPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 compile "org.apache.felix:org.apache.felix.scr.annotations:1.9.10"
                 compile "javax.servlet:servlet-api:2.5"
-                compile "ch.qos.logback:logback-classic:1.0.4"
+                compile "org.slf4j:slf4j-api:1.7.6"
             }
         '''.stripIndent()
     }
@@ -143,6 +146,8 @@ class ScrPluginIntegrationSpec extends IntegrationSpec {
             import org.apache.felix.scr.annotations.Property;
             import org.apache.felix.scr.annotations.Reference;
             import org.apache.felix.scr.annotations.Service;
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
 
             @Component(
                 label = "Simple Service Test",
@@ -173,6 +178,8 @@ class ScrPluginIntegrationSpec extends IntegrationSpec {
             public class SimpleService implements Runnable {
                 @Property(label = "Prop on constant")
                 private static final String ENABLE_DATA_SYNCH = "prop.on.constant";
+
+                private static final Logger logger = LoggerFactory.getLogger(SimpleService.class);
 
                 @Reference(name = "myRunnableName")
                 private Runnable myRunnable;

@@ -159,7 +159,7 @@ class ScrPlugin implements Plugin<Project> {
     private ClassLoader loadClassPaths(Project project) throws InvalidUserDataException {
         def classpathURLs = mainSourceSet(project).runtimeClasspath.collect { File f -> f.toURI().toURL() }
         if (!classpathURLs) throw new InvalidUserDataException("Runtime class path empty.")
-        new URLClassLoader(classpathURLs as URL[])
+        return new URLClassLoader(classpathURLs as URL[], Thread.currentThread().contextClassLoader)
     }
 
 
