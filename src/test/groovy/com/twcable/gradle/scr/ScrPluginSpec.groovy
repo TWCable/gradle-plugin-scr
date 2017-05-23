@@ -18,6 +18,7 @@ package com.twcable.gradle.scr
 import nebula.test.PluginProjectSpec
 import org.gradle.api.internal.project.DefaultProject
 import org.gradle.api.logging.LogLevel
+import org.slf4j.impl.StaticLoggerBinder
 import spock.lang.Subject
 
 @Subject(ScrPlugin)
@@ -25,7 +26,14 @@ import spock.lang.Subject
 class ScrPluginSpec extends PluginProjectSpec {
 
     def setup() {
-        project.logging.level = LogLevel.DEBUG
+        def logLevel = LogLevel.DEBUG
+        final loggerFactory = StaticLoggerBinder.getSingleton().getLoggerFactory()
+
+        final loggerFactoryClass = loggerFactory.getClass()
+        loggerFactoryClass.getMethod("setLevel", LogLevel.class).invoke(loggerFactory, logLevel)
+        final eventListener = loggerFactoryClass.getMethod("getOutputEventListener").invoke(loggerFactory)
+        if (eventListener == null) throw new IllegalStateException("eventListener == null for " + loggerFactory)
+        eventListener.getClass().getMethod("configure", LogLevel.class).invoke(eventListener, logLevel)
     }
 
 
