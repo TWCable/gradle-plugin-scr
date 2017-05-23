@@ -1,5 +1,5 @@
 language: java
 install: ""
-script: TERM=dumb ./gradlew clean check
+script: TERM=dumb ./gradlew --no-daemon clean check
 jdk:
-    - openjdk7
+    - oraclejdk8
