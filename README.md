@@ -38,11 +38,11 @@ buildscript {
 }
 ```
 
-Built against *Gradle 3.5* and *JDK 1.8*
+Built against **Gradle 3.5** and **JDK 1.8**
 
 # API #
 
-https://twcable.github.io/gradle-plugin-scr/docs/groovydoc/
+https://twcable.github.io/gradle-plugin-scr/groovydoc/
 
 # LICENSE
 
