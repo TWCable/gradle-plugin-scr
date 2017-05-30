@@ -39,6 +39,7 @@ dependencies {
 
 bintray {
     pkg {
+        userOrg = 'twcable'
         licenses = ['Apache-2.0']
         attributes = ['plat': ['gradle', 'groovy', 'java', 'jvm', 'osgi']]
 
@@ -51,12 +52,10 @@ bintray {
 
 apply plugin: 'com.mooregreatsoftware.defaults'
 
-//release.defaultVersionStrategy = org.ajoberstar.gradle.git.release.opinion.Strategies.SNAPSHOT
-
 defaults {
     compatibilityVersion = '1.8'
 
-    id = 'twcable'
+    orgId = 'twcable'
 
     orgName = 'Time Warner Cable'
     orgUrl = 'http://www.timewarnercable.com'
